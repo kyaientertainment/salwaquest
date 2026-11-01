@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduQuest - Game Siswa</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phaser 3 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <!-- Firebase SDK Compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <!-- Font Inter & Google Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        /* Memastikan container Phaser fleksibel */
+        #phaser-container canvas {
+            width: 100% !important;
+            height: auto !important;
+            display: block;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-2 sm:p-4">
+
+    <!-- MAIN CONTAINER -->
+    <div class="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-4 sm:p-6 relative overflow-hidden">
+        
+        <!-- HEADER LOGO -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4 sm:mb-6">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl sm:text-3xl">⚔️</span>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-amber-400 to-indigo-400">EduQuest</h1>
+                    <p class="text-[10px] sm:text-xs text-slate-400">Realm of Knowledge</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleAudio()" id="btn-audio-toggle" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg transition border border-slate-700 flex items-center justify-center" title="BGM & SFX">
+                    <span class="material-symbols-outlined text-lg" id="icon-audio">volume_up</span>
+                </button>
+                <div id="status-badge" class="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/60 px-3 py-1 rounded-full text-xs font-semibold text-emerald-400">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="status-text">Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 1: LOGIN / MASUK KODE KUIS -->
+        <div id="screen-login" class="space-y-5">
+            <div class="text-center max-w-sm mx-auto space-y-2">
+                <h2 class="text-lg font-bold text-slate-100">Selamat Datang, Pejuang Ilmu!</h2>
+                <p class="text-xs text-slate-400">Masukkan Nama Lengkap dan Kode Kuis 6-Digit dari Guru untuk memulai pertarungan.</p>
+            </div>
+
+            <div class="space-y-3 max-w-md mx-auto bg-slate-950/60 p-4 sm:p-5 border border-slate-800 rounded-2xl">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Lengkap Siswa</label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-500 text-lg">person</span>
+                        <input type="text" id="input-student-name" placeholder="misal: Budi Pratama" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Kode Kuis 6-Digit</label>
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-500 text-lg">key</span>
+                        <input type="text" id="input-quiz-code" placeholder="EQ-XXXXXX" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-3 py-2.5 text-sm font-mono font-bold text-amber-400 uppercase tracking-wider placeholder-slate-600 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <button onclick="handleStartGame()" class="w-full mt-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 text-xs uppercase tracking-wider">
+                    <span class="material-symbols-outlined text-base">play_circle</span>
+                    <span>Mulai Pertarungan</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: GAMEPLAY ARENA -->
+        <div id="screen-game" class="hidden space-y-4">
+            
+            <!-- TOP INFO BAR -->
+            <div class="flex justify-between items-center bg-slate-950/80 border border-slate-800 p-3 rounded-2xl text-xs">
+                <div>
+                    <span class="text-slate-400 block text-[10px]">MATA PELAJARAN</span>
+                    <span id="game-subject-title" class="font-bold text-indigo-300 text-xs">IPA</span>
+                </div>
+                <div>
+                    <span class="text-slate-400 block text-[10px] text-center">SOAL</span>
+                    <span id="game-question-progress" class="font-bold text-slate-200 text-xs">1 / 5</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-slate-400 block text-[10px]">SISA WAKTU</span>
+                    <span id="game-timer-display" class="font-mono font-bold text-amber-400 text-sm">20s</span>
+                </div>
+            </div>
+
+            <!-- PHASER CANVAS MOUNT AREA (RESPONSIVE CONTAINER) -->
+            <div id="phaser-container" class="w-full bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-inner relative flex items-center justify-center"></div>
+
+            <!-- QUESTION & OPTIONS CARD -->
+            <div class="bg-slate-950/80 border border-slate-800 p-4 rounded-2xl space-y-3">
+                <p id="game-question-text" class="text-xs sm:text-sm font-semibold text-slate-100 leading-relaxed">
+                    Memuat pertanyaan...
+                </p>
+
+                <!-- OPTIONS GRID -->
+                <div id="game-options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <!-- Injected via JavaScript -->
+                </div>
+
+                <!-- DISCUSSION BOX (MODE PRACTICE) -->
+                <div id="discussion-box" class="hidden mt-3 p-3 bg-indigo-950/50 border border-indigo-700/50 rounded-xl text-xs text-indigo-200">
+                    <span class="font-bold block text-amber-400 mb-1">💡 Pembahasan:</span>
+                    <span id="discussion-text">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 3: RESULT / REKAP SKOR -->
+        <div id="screen-result" class="hidden text-center space-y-6 py-4">
+            <div class="w-20 h-20 bg-indigo-500/10 border border-indigo-500/30 rounded-3xl flex items-center justify-center text-4xl mx-auto shadow-xl">
+                🏆
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-extrabold text-white">Misi Selesai!</h2>
+                <p class="text-xs text-slate-400 mt-1">Nilai akhir Anda telah berhasil dicatat ke server guru.</p>
+            </div>
+
+            <div class="bg-slate-950/80 border border-slate-800 p-5 rounded-2xl max-w-sm mx-auto space-y-3">
+                <div class="flex justify-between items-center text-xs border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">Nama Siswa</span>
+                    <span id="result-student-name" class="font-semibold text-slate-200">-</span>
+                </div>
+                <div class="flex justify-between items-center text-xs border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">Jawaban Benar</span>
+                    <span id="result-correct-count" class="font-semibold text-emerald-400">0 / 0</span>
+                </div>
+                <div>
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Skor Akhir</span>
+                    <span id="result-final-score" class="text-4xl font-extrabold text-amber-400 font-mono">0</span>
+                </div>
+            </div>
+
+            <button onclick="location.reload()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-6 py-2.5 rounded-xl text-xs font-semibold transition inline-flex items-center gap-2">
+                <span class="material-symbols-outlined text-base">refresh</span>
+                <span>Main Lagi / Ganti Kode Kuis</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT GAME ENGINE -->
+    <script>
+        // FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyCturxwO-_zAD-Fn4uVNslo1WIulqkTmGY",
+            authDomain: "eduquest-game.firebaseapp.com",
+            databaseURL: "https://eduquest-game-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "eduquest-game",
+            storageBucket: "eduquest-game.firebasestorage.app",
+            messagingSenderId: "454173421863",
+            appId: "1:454173421863:web:167f6a22d914116bcbb902"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // GAME STATE
+        let studentName = "";
+        let quizCode = "";
+        let quizData = null;
+        let currentQuestionIndex = 0;
+        let correctAnswersCount = 0;
+        let timerInterval = null;
+        let currentTimerSeconds = 20;
+        let isAnswerProcessing = false;
+        let audioEnabled = true;
+
+        // PHASER BATTLE ENGINE
+        let phaserGame = null;
+        let phaserScene = null;
+        let heroSprite, monsterSprite;
+        let heroHpBar, monsterHpBar;
+        let heroHp = 100, monsterHp = 100;
+        let hpDamagePerStep = 20;
+
+        // WEB AUDIO API SYNTHESIZER
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            if (!audioCtx) audioCtx = new AudioCtx();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'correct') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.2);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.25);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } else if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'tick') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.02, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+                osc.start(now);
+                osc.stop(now + 0.03);
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            document.getElementById('icon-audio').innerText = audioEnabled ? 'volume_up' : 'volume_off';
+        }
+
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // START GAME HANDLER
+        async function handleStartGame() {
+            playSound('click');
+            const nameInput = document.getElementById('input-student-name').value.trim();
+            const codeInput = document.getElementById('input-quiz-code').value.trim().toUpperCase();
+
+            if (!nameInput || !codeInput) {
+                alert("Harap isi Nama Lengkap dan Kode Kuis 6-digit terlebih dahulu!");
+                return;
+            }
+
+            studentName = nameInput;
+            quizCode = codeInput;
+
+            try {
+                const statusText = document.getElementById('status-text');
+                if (statusText) statusText.innerText = "Connecting...";
+
+                const snapshot = await database.ref('quizzes/' + quizCode).once('value');
+
+                if (!snapshot.exists()) {
+                    alert(`Kode Kuis '${quizCode}' tidak ditemukan! Periksa kembali kode dari Guru.`);
+                    if (statusText) statusText.innerText = "Ready";
+                    return;
+                }
+
+                quizData = snapshot.val();
+                if (statusText) statusText.innerText = "Online";
+
+                const totalQ = (quizData.questions && quizData.questions.length) ? quizData.questions.length : 1;
+                hpDamagePerStep = 100 / totalQ;
+
+                document.getElementById('screen-login').classList.add('hidden');
+                document.getElementById('screen-game').classList.remove('hidden');
+
+                document.getElementById('game-subject-title').innerText = quizData.subject || "Umum";
+
+                initPhaserBattle();
+                renderCurrentQuestion();
+
+            } catch (err) {
+                alert("Gagal memuat kuis: " + err.message);
+                console.error(err);
+                const statusText = document.getElementById('status-text');
+                if (statusText) statusText.innerText = "Error";
+            }
+        }
+
+        // RENDER QUESTION
+        function renderCurrentQuestion() {
+            isAnswerProcessing = false;
+            document.getElementById('discussion-box').classList.add('hidden');
+
+            if (!quizData || !quizData.questions || currentQuestionIndex >= quizData.questions.length) {
+                finishGame();
+                return;
+            }
+
+            const q = quizData.questions[currentQuestionIndex];
+            document.getElementById('game-question-progress').innerText = `${currentQuestionIndex + 1} / ${quizData.questions.length}`;
+            document.getElementById('game-question-text').innerText = q.question;
+
+            clearInterval(timerInterval);
+            currentTimerSeconds = q.timer || 20;
+            updateTimerDisplay();
+
+            timerInterval = setInterval(() => {
+                currentTimerSeconds--;
+                updateTimerDisplay();
+                if (currentTimerSeconds <= 5 && currentTimerSeconds > 0) playSound('tick');
+                if (currentTimerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    processAnswer(-1);
+                }
+            }, 1000);
+
+            const container = document.getElementById('game-options-container');
+            container.innerHTML = "";
+
+            let indexedOptions = q.options.map((optText, origIdx) => ({ text: optText, originalIdx: origIdx }));
+            indexedOptions = shuffleArray(indexedOptions);
+
+            const labels = ["A", "B", "C", "D"];
+            indexedOptions.forEach((optObj, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "quiz-option-btn w-full text-left bg-slate-900 hover:bg-indigo-600/30 border border-slate-800 hover:border-indigo-500 p-3 rounded-xl transition text-xs font-medium text-slate-200 flex items-start gap-2.5 group";
+                btn.innerHTML = `
+                    <span class="bg-slate-800 group-hover:bg-indigo-500 group-hover:text-white text-slate-400 font-mono font-bold text-[10px] px-2 py-0.5 rounded-md border border-slate-700/60">${labels[idx]}</span>
+                    <span class="flex-1">${escapeHtml(optObj.text)}</span>
+                `;
+                btn.onclick = () => {
+                    if (isAnswerProcessing) return;
+                    processAnswer(optObj.originalIdx, btn);
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function updateTimerDisplay() {
+            const timerEl = document.getElementById('game-timer-display');
+            timerEl.innerText = `${currentTimerSeconds}s`;
+            if (currentTimerSeconds <= 5) {
+                timerEl.className = "font-mono font-bold text-rose-400 text-sm animate-ping";
+            } else {
+                timerEl.className = "font-mono font-bold text-amber-400 text-sm";
+            }
+        }
+
+        // PROCESS ANSWER
+        function processAnswer(selectedIdx, clickedBtn = null) {
+            if (isAnswerProcessing) return;
+            isAnswerProcessing = true;
+            clearInterval(timerInterval);
+
+            const allBtns = document.querySelectorAll('.quiz-option-btn');
+            allBtns.forEach(b => b.disabled = true);
+
+            const q = quizData.questions[currentQuestionIndex];
+            const isCorrect = (selectedIdx === q.correctAnswer);
+
+            if (isCorrect) {
+                correctAnswersCount++;
+                playSound('correct');
+                if (clickedBtn) clickedBtn.classList.add('bg-emerald-600/30', 'border-emerald-500');
+                playAttackAnimation(true);
+            } else {
+                playSound('wrong');
+                if (clickedBtn) clickedBtn.classList.add('bg-rose-600/30', 'border-rose-500');
+                playAttackAnimation(false);
+            }
+
+            let delayMs = 1200;
+            if (quizData.mode === 'practice' && q.discussion) {
+                document.getElementById('discussion-text').innerText = q.discussion;
+                document.getElementById('discussion-box').classList.remove('hidden');
+                delayMs = 3000;
+            }
+
+            currentQuestionIndex++;
+            setTimeout(() => {
+                renderCurrentQuestion();
+            }, delayMs);
+        }
+
+        // FINISH GAME
+        async function finishGame() {
+            clearInterval(timerInterval);
+            const totalQuestions = quizData.questions ? quizData.questions.length : 1;
+            const finalScore = Math.round((correctAnswersCount / totalQuestions) * 100);
+
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-result').classList.remove('hidden');
+
+            document.getElementById('result-student-name').innerText = studentName;
+            document.getElementById('result-correct-count').innerText = `${correctAnswersCount} / ${totalQuestions}`;
+            document.getElementById('result-final-score').innerText = finalScore;
+
+            try {
+                await database.ref('results/' + quizCode).push({
+                    studentName: studentName,
+                    score: finalScore,
+                    correctCount: correctAnswersCount,
+                    totalQuestions: totalQuestions,
+                    completedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+            } catch (err) {
+                console.error("Gagal mengirim nilai:", err);
+            }
+        }
+
+        // PHASER 3 BATTLE SYSTEM (RESPONSIVE CONFIG)
+        function initPhaserBattle() {
+            if (phaserGame) return;
+
+            const config = {
+                type: Phaser.AUTO,
+                parent: 'phaser-container',
+                width: 600,
+                height: 192,
+                transparent: true,
+                scale: {
+                    mode: Phaser.Scale.FIT,
+                    autoCenter: Phaser.Scale.CENTER_BOTH
+                },
+                scene: {
+                    create: phaserCreate,
+                    update: phaserUpdate
+                }
+            };
+            phaserGame = new Phaser.Game(config);
+        }
+
+        function phaserCreate() {
+            phaserScene = this;
+
+            const bgGraphics = this.add.graphics();
+            bgGraphics.fillGradientStyle(0x020617, 0x020617, 0x0f172a, 0x0f172a, 1);
+            bgGraphics.fillRect(0, 0, 600, 192);
+
+            const ground = this.add.graphics();
+            ground.fillStyle(0x1e293b, 1);
+            ground.fillRect(0, 150, 600, 42);
+
+            heroSprite = this.add.text(90, 105, '🧙‍♂️', { fontSize: '38px' });
+            heroSprite.setOrigin(0.5);
+
+            monsterSprite = this.add.text(510, 105, '👾', { fontSize: '38px' });
+            monsterSprite.setOrigin(0.5);
+
+            this.add.rectangle(90, 45, 90, 8, 0x334155);
+            this.add.rectangle(510, 45, 90, 8, 0x334155);
+
+            heroHpBar = this.add.rectangle(90, 45, 90, 8, 0x10b981);
+            monsterHpBar = this.add.rectangle(510, 45, 90, 8, 0xef4444);
+
+            this.add.text(90, 30, 'HERO', { fontSize: '10px', fontStyle: 'bold', color: '#10b981' }).setOrigin(0.5);
+            this.add.text(510, 30, 'MONSTER', { fontSize: '10px', fontStyle: 'bold', color: '#ef4444' }).setOrigin(0.5);
+        }
+
+        function phaserUpdate() {}
+
+        function playAttackAnimation(isHeroAttack) {
+            if (!phaserScene) return;
+
+            if (isHeroAttack) {
+                phaserScene.tweens.add({
+                    targets: heroSprite,
+                    x: 440,
+                    duration: 250,
+                    yoyo: true,
+                    onYoyo: () => {
+                        phaserScene.cameras.main.shake(150, 0.01);
+                        monsterHp = Math.max(0, monsterHp - (hpDamagePerStep * 0.9));
+                        monsterHpBar.width = monsterHp;
+                    }
+                });
+            } else {
+                phaserScene.tweens.add({
+                    targets: monsterSprite,
+                    x: 160,
+                    duration: 250,
+                    yoyo: true,
+                    onYoyo: () => {
+                        phaserScene.cameras.main.shake(200, 0.015);
+                        heroHp = Math.max(0, heroHp - (hpDamagePerStep * 0.9));
+                        heroHpBar.width = heroHp;
+                    }
+                });
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
